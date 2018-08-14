@@ -95,8 +95,11 @@ final class User_Points {
 		$this->plugin_path 		= plugin_dir_path( __FILE__ );
 		$this->version 			= '1.0.0';
 
-	// Woocommerce points
-	require_once( 'classes/class-user-woocommerce-points.php' );
+		// Woocommerce points
+		require_once( 'classes/class-user-woocommerce-points.php' );
+
+		// Woocommerce donation product
+		require_once( 'classes/class-woocommerce-donation-product.php' );
 
 	} // End __construct()
 
@@ -124,3 +127,18 @@ final class User_Points {
 } // End Class
 
 $userPoints = new User_Points();
+
+
+/**
+ * Plugin activation hook
+ * @access public
+ * @since 1.0.0
+ */
+function up_activate() {
+
+	if ( ! get_option( "total_donations" ) ) {
+		add_option( "total_donations", 0, '', 'yes' );
+	}
+
+}
+register_activation_hook( __FILE__, 'up_activate' );

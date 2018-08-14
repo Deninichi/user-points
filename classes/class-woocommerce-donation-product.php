@@ -59,6 +59,7 @@ class Woo_Donation_Product {
 		
 		global $product;
 
+		$html = '';
 		if ( 2060 === $product->get_id() ) {
 			$html = '<div class="donation-field">Donation: $<input type="number" id="donation" step="10" min="10" name="donation" value="10" onkeydown="return false"></div>';
 		}

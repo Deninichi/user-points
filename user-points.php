@@ -101,6 +101,9 @@ final class User_Points {
 		// Woocommerce donation product
 		require_once( 'classes/class-woocommerce-donation-product.php' );
 
+		// Woocommerce custom taxonomies
+		require_once( 'classes/class-woocommerce-taxonomies.php' );
+		
 	} // End __construct()
 
 

@@ -20,7 +20,7 @@ class Woo_Donation_Product {
 	public function __construct() {
 
 		// Remove Woocommerce hooks
-		add_action( 'wp', array( $this, 'up_remove_woo_hooks' ), 15 );
+		add_action( 'init', array( $this, 'up_remove_woo_hooks' ), 15 );
 		
 		// Donation field HTML
 		add_action( 'woocommerce_before_add_to_cart_button', array( $this, 'up_donation_field_html' ), 15 );
@@ -41,11 +41,18 @@ class Woo_Donation_Product {
 		// Add donation payment to total 
 		add_action( 'woocommerce_order_status_completed', array( $this, 'up_add_donation_to_total' ), 10, 1 );
 
+		// Add donation payment to product total 
+		add_action( 'woocommerce_order_status_completed', array( $this, 'up_add_donation_to_product' ), 10, 1 );
+
 		// Show total donation field on the "general" settings page
 		add_filter('admin_init', array( $this, 'up_register_donation_settings_field' ) );
 
 		// Shortcodes
 		add_shortcode( 'total_donation_value', array( $this, 'render_total_donation_value' ) );
+
+		//Add product donation field
+		add_action( 'woocommerce_product_options_general_product_data', array( $this, 'add_product_custom_field' ) );
+		add_action( 'woocommerce_process_product_meta', array( $this, 'save_product_custom_field' ) );
 
 	} // End __construct()
 
@@ -59,8 +66,14 @@ class Woo_Donation_Product {
 		
 		global $product;
 
+		$product_cats = array();
+		$terms = get_the_terms( $product->get_id(), 'product_cat' );
+		foreach ( $terms as $term ) {
+		    $product_cats[] = $term->term_id;
+		}
+
 		$html = '';
-		if ( 2060 === $product->get_id() ) {
+		if ( in_array( 116, $product_cats ) ) {
 			$html = '<div class="donation-field">Donation: $<input type="number" id="donation" step="10" min="10" name="donation" value="10" onkeydown="return false"></div>';
 		}
 		
@@ -165,6 +178,8 @@ class Woo_Donation_Product {
 	    
 	    if ( $unset == true ) {
 	    	unset( $available_gateways['sb_test'] );
+	    	unset( $available_gateways['braintree_credit_card'] );
+	    	unset( $available_gateways['braintree_paypal'] );
 	    } else {
 	    	unset( $available_gateways['mycred'] );
 	    }
@@ -181,10 +196,20 @@ class Woo_Donation_Product {
 	 */
 	public function up_remove_woo_hooks(){
 
-		global $product;
+		if ( is_product() ) {
+		
+			global $product;
 
-		if ( 'donation' === $product ) {
-			remove_action( 'woocommerce_single_product_summary', 'woocommerce_template_single_price', 10 );
+			$product_cats = array();
+			$terms = get_the_terms( $product->get_id(), 'product_cat' );
+			foreach ( $terms as $term ) {
+			    $product_cats[] = $term->term_id;
+			}
+
+			if ( in_array( 116, $product_cats ) ) {
+				remove_action( 'woocommerce_single_product_summary', 'woocommerce_template_single_price', 10 );
+			}
+
 		}
 
 	}
@@ -223,17 +248,59 @@ class Woo_Donation_Product {
 	 */
 	public function up_add_donation_to_total( $order_id ){
 
+		// Exclude categories
+		$category_ids = array( 116 );
+
 		// Get Order
 		$order   = wc_get_order( $order_id );
 
 		$items_number = 0;
 		foreach ( $order->get_items() as $item_id => $item ) {
 
-			if ( 2060 === $item->get_product_id() ) {
-				$total_donations = get_option( 'total_donations' );
+			$terms = get_the_terms( $item->get_product_id(), 'product_cat' );    
+
+		    foreach ( $terms as $term ) {        
+		        if ( in_array( $term->term_id, $category_ids ) ) {
+		            $total_donations = get_option( 'total_donations' );
 	
-				update_option( 'total_donations', $total_donations + $order->get_total() );
-			}
+					update_option( 'total_donations', $total_donations + $order->get_total() );
+		        }
+		    }
+
+		}
+
+	}
+
+
+	/**
+	 * Add new donation to total product value.
+	 * Each product has separate total donations by this one product
+	 * @access public
+	 * @since 1.0.0
+	 */
+	public function up_add_donation_to_product( $order_id ){
+
+		// Exclude categories
+		$category_ids = array( 116 );
+
+		// Get Order
+		$order   = wc_get_order( $order_id );
+
+		$items_number = 0;
+		foreach ( $order->get_items() as $item_id => $item ) {
+
+			$terms = get_the_terms( $item->get_product_id(), 'product_cat' );    
+
+		    foreach ( $terms as $term ) {        
+		        if ( in_array( $term->term_id, $category_ids ) ) {
+
+		        	$product = wc_get_product( $item->get_product_id() );
+ 					$product_total_donations = $product->get_meta( 'up_product_donations' );
+
+					$product->update_meta_data( 'up_product_donations', sanitize_text_field( $product_total_donations + $item->get_total() ) );
+					$product->save();
+		        }
+		    }
 
 		}
 
@@ -245,16 +312,40 @@ class Woo_Donation_Product {
 	 * @access public
 	 * @since 1.0.0
 	 */
-	public function render_total_donation_value(){
+	public function render_total_donation_value( $atts ){
 
+		global $post;
+		$product = wc_get_product( $post->ID );
+ 		$product_total_donations = $product->get_meta( 'up_product_donations' );
+
+		$product_sold = get_post_meta( $post->ID, 'total_sales', true );
+
+		if ( ! $product_sold ) {
+			$product_sold = 0;
+		}
+
+		if ( 'single-left' === $atts['type'] || 'single-top' === $atts['type'] ){
+			$total_donations = str_split( number_format( $product_total_donations ) );
+		} else {
+			$total_donations = str_split( number_format( get_option( 'total_donations' ) ) );
+		}
 		
 
 		ob_start();
-		$total_donations = str_split( number_format( get_option( 'total_donations' ) ) );
 		?>
 
-		<div class="counting">
-			<p>Total Donated as of <?php echo date( 'm/d/Y' ) ?></p>
+		<div class="counting <?php echo $atts['type']; ?>">
+
+			<?php if ( 'single-left' === $atts['type'] ): ?>
+				<p>Total Donations Raised</p>
+			<?php elseif( 'single-top' === $atts['type'] ) : ?>
+				<span class="total">
+					<img src="<?php echo get_template_directory_uri();?>/images/counter.png"> Total Donated as of <?php echo date( 'm/d/Y' ) ?>
+				</span>
+			<?php else: ?>
+				<p>Total Donated as of <?php echo date( 'm/d/Y' ) ?></p>
+			<?php endif; ?>
+
 			<div class="numbers">
 				<?php foreach ( $total_donations as $number ){
 					
@@ -267,7 +358,15 @@ class Woo_Donation_Product {
 
 				} ?>
 			</div>
-			<p>and counting</p>
+
+			<?php if ( 'single-left' === $atts['type'] ): ?>
+				<p><?php echo $product_sold; ?> Total donations and counting</p>
+			<?php elseif( 'single-top' === $atts['type'] ) : ?>
+				
+			<?php else: ?>
+				<p>and counting</p>
+			<?php endif; ?>
+
 		</div>
 
 		<?php
@@ -276,6 +375,45 @@ class Woo_Donation_Product {
 		ob_clean();
 
 		return $html;
+	}
+
+
+
+	/**
+	 * Add new field to woocommerce product
+	 * @access public
+	 * @since 1.0.0
+	 */
+	public function add_product_custom_field(){
+		global $product;
+
+		$description = sanitize_text_field( 'Current product total donations' );
+        $placeholder = sanitize_text_field( '0' );
+
+        $args = array(
+            'id'            => 'up_product_donations',
+            'label'         => sanitize_text_field( 'Product total donations' ),
+            'placeholder'   => $placeholder,
+            'desc_tip'      => true,
+            'description'   => $description,
+        );
+        woocommerce_wp_text_input( $args );
+
+	}
+
+
+	/**
+	 * Save new field to woocommerce product
+	 * @access public
+	 * @since 1.0.0
+	 */
+	public function save_product_custom_field( $post_id ){
+		
+		$product = wc_get_product( $post_id );
+		$product_donations = isset( $_POST['up_product_donations'] ) ? $_POST['up_product_donations'] : '';
+		$product->update_meta_data( 'up_product_donations', sanitize_text_field( $product_donations ) );
+		$product->save();
+
 	}
 
 

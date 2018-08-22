@@ -316,15 +316,20 @@ class Woo_Donation_Product {
 
 		global $post;
 		$product = wc_get_product( $post->ID );
- 		$product_total_donations = $product->get_meta( 'up_product_donations' );
-
+ 		
+		if ( is_product() ) {
+			$product_total_donations = $product->get_meta( 'up_product_donations' );
+		} else {
+			$product_total_donations = 0;
+		}
+ 		
 		$product_sold = get_post_meta( $post->ID, 'total_sales', true );
 
 		if ( ! $product_sold ) {
 			$product_sold = 0;
 		}
 
-		if ( 'single-left' === $atts['type'] || 'single-top' === $atts['type'] ){
+		if ( 'single-left' === $atts['type'] ){
 			$total_donations = str_split( number_format( $product_total_donations ) );
 		} else {
 			$total_donations = str_split( number_format( get_option( 'total_donations' ) ) );

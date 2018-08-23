@@ -54,6 +54,9 @@ class Woo_Donation_Product {
 		add_action( 'woocommerce_product_options_general_product_data', array( $this, 'add_product_custom_field' ) );
 		add_action( 'woocommerce_process_product_meta', array( $this, 'save_product_custom_field' ) );
 
+		// Deny products from other categories in the cart
+		add_action( 'woocommerce_add_to_cart_validation', array( $this, 'up_custom_cart_validation' ), 10, 3 );
+
 	} // End __construct()
 
 
@@ -330,9 +333,9 @@ class Woo_Donation_Product {
 		}
 
 		if ( 'single-left' === $atts['type'] ){
-			$total_donations = str_split( number_format( $product_total_donations ) );
+			$total_donations = str_split( number_format( (int)$product_total_donations ) );
 		} else {
-			$total_donations = str_split( number_format( get_option( 'total_donations' ) ) );
+			$total_donations = str_split( number_format( (int)get_option( 'total_donations' ) ) );
 		}
 		
 
@@ -421,6 +424,59 @@ class Woo_Donation_Product {
 
 	}
 
+
+	/**
+	 * Save new field to woocommerce product
+	 * @access public
+	 * @since 1.0.0
+	 */
+	public function up_custom_cart_validation( $passed, $product_id, $quantity ){
+
+		// Getting the product categories ids in an array for the current product
+	    $product_cats_object = get_the_terms( $product_id, 'product_cat' );
+	    foreach( $product_cats_object as $obj_prod_cat ){
+	        $product_cats[] = $obj_prod_cat->term_id;
+	    }
+
+	    // If donation product
+	    if ( in_array( 116, $product_cats ) ) {
+	    
+		    // Iterating through each cart item
+		    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item ){
+
+		        // When the product category of the current product match with a cart item
+		        if( ! has_term( $product_cats, 'product_cat', $cart_item['product_id'] ))
+		        {
+
+		            // Displaying a message
+		            wc_add_notice( 'You can\'t add regular products with donation at same time', 'notice' );
+		            return false;
+		            // We stop the loop
+		            break;
+		        }
+		    }
+		} else {
+
+			// Iterating through each cart item
+		    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item ){
+
+		        // When the product category of the current product match with a cart item
+		        if( has_term( 116, 'product_cat', $cart_item['product_id'] ))
+		        {
+
+		            // Displaying a message
+		            wc_add_notice( 'You can\'t add regular products with donation at same time', 'notice' );
+		            return false;
+		            // We stop the loop
+		            break;
+		        }
+		    }
+
+		}
+
+		return $passed;
+
+	}
 
 }
 

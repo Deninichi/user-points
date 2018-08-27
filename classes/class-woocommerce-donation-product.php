@@ -77,7 +77,7 @@ class Woo_Donation_Product {
 
 		$html = '';
 		if ( in_array( 116, $product_cats ) ) {
-			$html = '<div class="donation-field">Donation: $<input type="number" id="donation" step="10" min="10" name="donation" value="10" onkeydown="return false"></div>';
+			$html = '<div class="donation-field">Donation: $<input type="number" id="donation" step="10" min="10" max="200" name="donation" value="10" onkeydown="return false"></div>';
 		}
 		
 

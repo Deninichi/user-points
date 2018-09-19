@@ -19,9 +19,9 @@ class Woo_Points {
 	 */
 	public function __construct() {
 		
-		add_action( 'woocommerce_order_status_completed', array( $this, 'mycred_pro_reward_order_points' ), 20 );
+		add_action( 'woocommerce_payment_complete', array( $this, 'mycred_pro_reward_order_points' ), 20 );
 
-		add_action( 'after_setup_theme', array( $this, 'mycred_pro_adjust_woo_rewards'), 110 );
+		//add_action( 'after_setup_theme', array( $this, 'mycred_pro_adjust_woo_rewards'), 110 );
 
 	} // End __construct()
 
@@ -74,12 +74,12 @@ class Woo_Points {
 	 * @access public
 	 * @since 1.0.0
 	 */
-	public function mycred_pro_adjust_woo_rewards() {
+	// public function mycred_pro_adjust_woo_rewards() {
 
-		remove_action( 'woocommerce_payment_complete',    'mycred_woo_payout_rewards' );
-		add_action( 'woocommerce_order_status_completed', 'mycred_woo_payout_rewards' );
+	// 	remove_action( 'woocommerce_payment_complete',    'mycred_woo_payout_rewards' );
+	// 	add_action( 'woocommerce_order_status_completed', 'mycred_woo_payout_rewards' );
 
-	}
+	// }
 
 }
 

@@ -171,7 +171,8 @@ class Woo_Donation_Product {
 		$category_ids = array( 116 );
 		foreach ( $woocommerce->cart->cart_contents as $key => $values ) {
 		    $terms = get_the_terms( $values['product_id'], 'product_cat' );    
-		    foreach ( $terms as $term ) {        
+		    foreach ( $terms as $term ) {  
+
 		        if ( in_array( $term->term_id, $category_ids ) ) {
 		            $unset = true;
 		            break;
